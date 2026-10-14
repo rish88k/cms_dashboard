@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}DBA Central{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0D1117; --surface:#161B22; --surface-2:#1C2128; --border:#30363D;
+  --ink:#E6EDF3; --ink-2:#9BA6B2; --muted:#6E7781;
+  --accent:#3B82F6; --accent-dim:#1D4ED8;
+  --ok:#3FB950; --warn:#D29922; --crit:#F85149; --teal:#2DD4BF;
+  --sans:'Inter',system-ui,sans-serif; --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5}
+
+/* Layout */
+.shell{display:flex;min-height:100vh}
+.sidebar{width:230px;background:var(--surface);border-right:1px solid var(--border);
+  padding:20px 0;flex:none;position:sticky;top:0;height:100vh;overflow-y:auto}
+.brand{padding:0 20px 20px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.brand h1{font-size:16px;font-weight:700;letter-spacing:-.01em}
+.brand p{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+.nav a{display:flex;align-items:center;gap:10px;padding:9px 20px;color:var(--ink-2);
+  text-decoration:none;font-size:13.5px;border-left:3px solid transparent;transition:all .15s}
+.nav a:hover{background:var(--surface-2);color:var(--ink)}
+.nav a.active{background:var(--surface-2);color:var(--accent);border-left-color:var(--accent);font-weight:500}
+.nav .sec{font-size:10px;font-family:var(--mono);color:var(--muted);padding:14px 20px 6px;
+  letter-spacing:.06em;text-transform:uppercase}
+.main{flex:1;padding:28px 32px;max-width:1400px}
+.page-head{margin-bottom:24px}
+.page-head h2{font-size:22px;font-weight:700;letter-spacing:-.02em;margin-bottom:4px}
+.page-head p{color:var(--ink-2);font-size:13.5px}
+
+/* Cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:24px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
+.card .label{font-size:11px;font-family:var(--mono);color:var(--muted);
+  text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.card .value{font-size:28px;font-weight:700;line-height:1;font-family:var(--mono)}
+.card .sub{font-size:12px;color:var(--ink-2);margin-top:4px}
+.card.ok .value{color:var(--ok)} .card.warn .value{color:var(--warn)}
+.card.crit .value{color:var(--crit)} .card.accent .value{color:var(--accent)}
+
+/* Tables */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  overflow:hidden;margin-bottom:20px}
+.panel-head{padding:14px 18px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between}
+.panel-head h3{font-size:15px;font-weight:600}
+.panel-head .count{font-size:12px;font-family:var(--mono);color:var(--muted)}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:9px 18px;font-size:10.5px;font-family:var(--mono);
+  color:var(--muted);text-transform:uppercase;letter-spacing:.05em;
+  background:var(--surface-2);border-bottom:1px solid var(--border)}
+td{padding:10px 18px;border-bottom:1px solid var(--border);font-size:13px}
+tr:last-child td{border-bottom:0}
+tr:hover td{background:var(--surface-2)}
+.mono{font-family:var(--mono);font-size:12.5px}
+
+/* Badges */
+.badge{display:inline-block;padding:2px 8px;border-radius:5px;font-size:11px;
+  font-family:var(--mono);font-weight:500}
+.b-ok{background:rgba(63,185,80,.15);color:var(--ok)}
+.b-warn{background:rgba(210,153,34,.15);color:var(--warn)}
+.b-crit{background:rgba(248,81,73,.15);color:var(--crit)}
+.b-info{background:rgba(59,130,246,.15);color:var(--accent)}
+.b-mute{background:var(--surface-2);color:var(--muted)}
+
+/* Bars */
+.bar{height:6px;background:var(--surface-2);border-radius:3px;overflow:hidden;min-width:80px}
+.bar span{display:block;height:100%;border-radius:3px}
+.bar .f-ok{background:var(--ok)} .bar .f-warn{background:var(--warn)} .bar .f-crit{background:var(--crit)}
+
+.empty{padding:36px;text-align:center;color:var(--muted);font-size:13px}
+.flex{display:flex;align-items:center;gap:10px}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <h1>DBA Central</h1>
+      <p>control plane</p>
+    </div>
+    <nav class="nav">
+      <a href="/" class="{% if active=='overview' %}active{% endif %}">Overview</a>
+      <div class="sec">Inventory</div>
+      <a href="/estate" class="{% if active=='estate' %}active{% endif %}">Estate map</a>
+      <a href="/patch" class="{% if active=='patch' %}active{% endif %}">Patch &amp; databases</a>
+      <div class="sec">Monitoring</div>
+      <a href="/health" class="{% if active=='health' %}active{% endif %}">Health &amp; alerts</a>
+      <a href="/backup" class="{% if active=='backup' %}active{% endif %}">Backup &amp; RPO</a>
+      <div class="sec">Governance</div>
+      <a href="/policy" class="{% if active=='policy' %}active{% endif %}">Policy scorecard</a>
+      <div class="sec">System</div>
+      <a href="/platform" class="{% if active=='platform' %}active{% endif %}">Platform health</a>
+    </nav>
+  </aside>
+  <main class="main">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>

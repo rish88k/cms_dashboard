@@ -1,0 +1,13 @@
+services:
+  dashboard:
+    build: .
+    image: dba-central-dashboard
+    container_name: dba-dashboard
+    env_file: .env
+    ports:
+      - "127.0.0.1:5000:5000"     # reachable only from this laptop
+    extra_hosts:
+      # Docker Desktop already defines this name; this line makes it work on
+      # Linux Docker engines too.
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

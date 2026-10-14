@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Health — DBA Central{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h2>Health &amp; alerts</h2>
+  <p>Disk capacity and all threshold breaches from the last 7 days</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h3>Disk space</h3><span class="count">{{ disk|length }} volumes</span></div>
+  <table>
+    <tr><th>Server</th><th>Volume</th><th>Free GB</th><th>Usage</th><th>Total GB</th><th>Status</th></tr>
+    {% for d in disk %}
+    <tr>
+      <td class="mono">{{ d.ServerName }}</td>
+      <td class="mono">{{ d.VolumePath }}</td>
+      <td class="mono">{{ d.FreeGB }}</td>
+      <td>
+        <div class="flex">
+          <div class="bar"><span class="{% if d.FreePercent < 5 %}f-crit{% elif d.FreePercent < 15 %}f-warn{% else %}f-ok{% endif %}" style="width:{{ 100 - d.FreePercent }}%"></span></div>
+          <span class="mono">{{ d.FreePercent }}%</span>
+        </div>
+      </td>
+      <td class="mono">{{ d.TotalGB }}</td>
+      <td><span class="badge {% if d.FreePercent < 5 %}b-crit{% elif d.FreePercent < 15 %}b-warn{% else %}b-ok{% endif %}">
+        {% if d.FreePercent < 5 %}Critical{% elif d.FreePercent < 15 %}Warning{% else %}OK{% endif %}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+<div class="panel">
+  <div class="panel-head"><h3>Alert feed</h3><span class="count">{{ alerts|length }} alerts</span></div>
+  {% if alerts %}
+  <table>
+    <tr><th>When</th><th>Server</th><th>Type</th><th>Severity</th><th>Message</th><th>Sent</th></tr>
+    {% for a in alerts %}
+    <tr>
+      <td class="mono">{{ a.AlertUtc }}</td>
+      <td class="mono">{{ a.ServerName }}</td>
+      <td><span class="badge b-info">{{ a.AlertType }}</span></td>
+      <td><span class="badge {% if a.Severity=='Critical' %}b-crit{% else %}b-warn{% endif %}">{{ a.Severity }}</span></td>
+      <td>{{ a.Message }}</td>
+      <td><span class="badge {% if a.IsSent %}b-ok{% else %}b-mute{% endif %}">{% if a.IsSent %}Sent{% else %}Pending{% endif %}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<div class="empty">No alerts</div>{% endif %}
+</div>
+{% endblock %}

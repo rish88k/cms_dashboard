@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Backup — DBA Central{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h2>Backup &amp; RPO compliance</h2>
+  <p>Recovery point objective status per database</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h3>RPO status</h3><span class="count">{{ backup|length }} databases</span></div>
+  <table>
+    <tr><th>Server</th><th>Database</th><th>Last full</th><th>Last log</th><th>RPO gap</th><th>Target</th><th>Status</th></tr>
+    {% for b in backup %}
+    <tr>
+      <td class="mono">{{ b.ServerName }}</td>
+      <td class="mono">{{ b.DatabaseName }}</td>
+      <td class="mono">{{ b.LastFullUtc or '—' }}</td>
+      <td class="mono">{{ b.LastLogUtc or '—' }}</td>
+      <td class="mono">{% if b.RpoActualMin > 9000 %}never{% else %}{{ b.RpoActualMin }} min{% endif %}</td>
+      <td class="mono" style="color:var(--muted)">{{ b.RpoTargetMin }} min</td>
+      <td><span class="badge {% if b.IsCompliant %}b-ok{% else %}b-crit{% endif %}">
+        {% if b.IsCompliant %}Compliant{% else %}Breached{% endif %}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Policy — DBA Central{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h2>Policy scorecard</h2>
+  <p>DBA standards evaluated against every instance</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h3>Policy results</h3><span class="count">{{ policy|length }} checks</span></div>
+  <table>
+    <tr><th>Server</th><th>Env</th><th>Policy</th><th>Category</th><th>Result</th><th>Detail</th></tr>
+    {% for p in policy %}
+    <tr>
+      <td class="mono">{{ p.ServerName }}</td>
+      <td><span class="badge b-info">{{ p.Environment }}</span></td>
+      <td class="mono">{{ p.PolicyName }}</td>
+      <td style="color:var(--ink-2)">{{ p.Category }}</td>
+      <td><span class="badge {% if p.Result=='Pass' %}b-ok{% else %}b-crit{% endif %}">{{ p.Result }}</span></td>
+      <td class="mono" style="color:var(--muted)">{{ p.Detail or '—' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

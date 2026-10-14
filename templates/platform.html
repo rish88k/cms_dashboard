@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Platform — DBA Central{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h2>Platform health</h2>
+  <p>Collector runs in the last 24 hours — the platform monitoring itself</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h3>Collection log</h3><span class="count">{{ collection|length }} runs</span></div>
+  <table>
+    <tr><th>Started</th><th>Collector</th><th>Target</th><th>Status</th><th>Message</th></tr>
+    {% for c in collection %}
+    <tr>
+      <td class="mono">{{ c.StartUtc }}</td>
+      <td class="mono">{{ c.CollectorName }}</td>
+      <td class="mono">{{ c.TargetServer }}</td>
+      <td><span class="badge {% if c.Status=='Success' %}b-ok{% elif c.Status=='Failed' %}b-crit{% else %}b-warn{% endif %}">{{ c.Status }}</span></td>
+      <td style="color:var(--ink-2)">{{ c.Message or '—' }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

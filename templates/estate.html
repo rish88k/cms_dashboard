@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Estate map — DBA Central{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h2>Estate map</h2>
+  <p>Every registered instance, synced from the Central Management Server</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h3>Registered instances</h3><span class="count">{{ estate|length }} total</span></div>
+  <table>
+    <tr><th>ID</th><th>Server</th><th>Environment</th><th>Group path</th><th>Status</th><th>Last sync</th></tr>
+    {% for e in estate %}
+    <tr>
+      <td class="mono">{{ e.InstanceId }}</td>
+      <td class="mono">{{ e.ServerName }}</td>
+      <td><span class="badge b-info">{{ e.Environment }}</span></td>
+      <td class="mono" style="color:var(--muted)">{{ e.GroupPath }}</td>
+      <td><span class="badge {% if e.IsActive %}b-ok{% else %}b-mute{% endif %}">{% if e.IsActive %}Active{% else %}Inactive{% endif %}</span></td>
+      <td class="mono">{{ e.LastSyncUtc }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

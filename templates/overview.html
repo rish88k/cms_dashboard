@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Overview — DBA Central{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h2>Overview</h2>
+  <p>Estate-wide status across {{ stats.instances }} managed instances</p>
+</div>
+
+<div class="cards">
+  <div class="card accent">
+    <div class="label">Instances</div>
+    <div class="value">{{ stats.instances }}</div>
+    <div class="sub">managed</div>
+  </div>
+  <div class="card {% if stats.alerts_critical > 0 %}crit{% else %}ok{% endif %}">
+    <div class="label">Critical alerts</div>
+    <div class="value">{{ stats.alerts_critical }}</div>
+    <div class="sub">{{ stats.alerts_warning }} warnings</div>
+  </div>
+  <div class="card {% if stats.patch_compliant == stats.patch_total %}ok{% else %}warn{% endif %}">
+    <div class="label">Patch compliant</div>
+    <div class="value">{{ stats.patch_compliant }}/{{ stats.patch_total }}</div>
+    <div class="sub">on target build</div>
+  </div>
+  <div class="card {% if stats.backup_compliant == stats.backup_total %}ok{% else %}crit{% endif %}">
+    <div class="label">Backup RPO</div>
+    <div class="value">{{ stats.backup_compliant }}/{{ stats.backup_total }}</div>
+    <div class="sub">meeting target</div>
+  </div>
+  <div class="card {% if stats.policy_pass == stats.policy_total %}ok{% else %}warn{% endif %}">
+    <div class="label">Policies passing</div>
+    <div class="value">{{ stats.policy_pass }}/{{ stats.policy_total }}</div>
+    <div class="sub">standards met</div>
+  </div>
+  <div class="card {% if stats.disk_critical > 0 %}crit{% elif stats.disk_warning > 0 %}warn{% else %}ok{% endif %}">
+    <div class="label">Disk pressure</div>
+    <div class="value">{{ stats.disk_critical }}</div>
+    <div class="sub">{{ stats.disk_warning }} warning volumes</div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-head">
+    <h3>Recent alerts</h3>
+    <span class="count">{{ alerts|length }} shown</span>
+  </div>
+  {% if alerts %}
+  <table>
+    <tr><th>When</th><th>Server</th><th>Type</th><th>Severity</th><th>Message</th></tr>
+    {% for a in alerts %}
+    <tr>
+      <td class="mono">{{ a.AlertUtc }}</td>
+      <td class="mono">{{ a.ServerName }}</td>
+      <td><span class="badge b-info">{{ a.AlertType }}</span></td>
+      <td><span class="badge {% if a.Severity=='Critical' %}b-crit{% else %}b-warn{% endif %}">{{ a.Severity }}</span></td>
+      <td>{{ a.Message }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<div class="empty">No alerts in the last 7 days</div>{% endif %}
+</div>
+
+<div class="panel">
+  <div class="panel-head">
+    <h3>Disk space</h3>
+    <span class="count">{{ disk|length }} volumes</span>
+  </div>
+  <table>
+    <tr><th>Server</th><th>Volume</th><th>Free</th><th>Usage</th><th>Total</th></tr>
+    {% for d in disk %}
+    <tr>
+      <td class="mono">{{ d.ServerName }}</td>
+      <td class="mono">{{ d.VolumePath }}</td>
+      <td class="mono">{{ d.FreeGB }} GB</td>
+      <td>
+        <div class="flex">
+          <div class="bar"><span class="{% if d.FreePercent < 5 %}f-crit{% elif d.FreePercent < 15 %}f-warn{% else %}f-ok{% endif %}" style="width:{{ 100 - d.FreePercent }}%"></span></div>
+          <span class="mono">{{ d.FreePercent }}% free</span>
+        </div>
+      </td>
+      <td class="mono">{{ d.TotalGB }} GB</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

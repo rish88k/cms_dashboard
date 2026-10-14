@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Patch compliance — DBA Central{% endblock %}
+{% block content %}
+<div class="page-head">
+  <h2>Patch &amp; databases</h2>
+  <p>Build level versus baseline, and database inventory across the estate</p>
+</div>
+<div class="panel">
+  <div class="panel-head"><h3>Patch compliance</h3><span class="count">{{ patch|length }} instances</span></div>
+  <table>
+    <tr><th>Server</th><th>Env</th><th>Build</th><th>CU</th><th>Target</th><th>Status</th></tr>
+    {% for p in patch %}
+    <tr>
+      <td class="mono">{{ p.ServerName }}</td>
+      <td><span class="badge b-info">{{ p.Environment }}</span></td>
+      <td class="mono">{{ p.ProductVersion }}</td>
+      <td class="mono">{{ p.PatchLevel }}</td>
+      <td class="mono" style="color:var(--muted)">{{ p.TargetVersion }}</td>
+      <td><span class="badge {% if p.PatchStatus=='Compliant' %}b-ok{% else %}b-crit{% endif %}">{{ p.PatchStatus }}</span></td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+<div class="panel">
+  <div class="panel-head"><h3>Databases</h3><span class="count">{{ databases|length }} databases</span></div>
+  <table>
+    <tr><th>Server</th><th>Database</th><th>Size</th><th>Recovery</th><th>State</th><th>Compat</th></tr>
+    {% for d in databases %}
+    <tr>
+      <td class="mono">{{ d.ServerName }}</td>
+      <td class="mono">{{ d.DatabaseName }}</td>
+      <td class="mono">{{ d.SizeMB }} MB</td>
+      <td><span class="badge {% if d.RecoveryModel=='FULL' %}b-info{% else %}b-mute{% endif %}">{{ d.RecoveryModel }}</span></td>
+      <td><span class="badge {% if d.State=='ONLINE' %}b-ok{% else %}b-crit{% endif %}">{{ d.State }}</span></td>
+      <td class="mono">{{ d.CompatLevel }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}
