@@ -14,9 +14,11 @@ Run in Docker (SQL login, reaches the laptop through host.docker.internal):
 All settings come from environment variables — see .env.example.
 """
 
-from flask import Flask, render_template, jsonify
+from flask import Flask, render_template, jsonify, g
 import os
-from datetime import datetime
+from contextlib import closing
+from datetime import date, datetime
+from decimal import Decimal
 
 try:
     import pyodbc
@@ -61,26 +63,92 @@ def build_conn_str():
     return ";".join(parts) + ";"
 
 
-if not USE_DEMO_DATA and pyodbc is None:
-    raise RuntimeError("Live mode needs pyodbc and the Microsoft ODBC Driver 18 for SQL Server. "
-                       "Install them, or set DBA_DEMO=1 for sample data.")
+def check_config():
+    """Return a description of what stops live mode from working, or None.
 
-CONN_STR = None if USE_DEMO_DATA else build_conn_str()
+    Reported by /healthz and on every page instead of crashing at import, so a
+    container with a bad .env still starts and says what is wrong.
+    """
+    if USE_DEMO_DATA:
+        return None
+    if pyodbc is None:
+        return ("Live mode needs pyodbc and the Microsoft ODBC Driver 18 for SQL Server. "
+                "Install them, or set DBA_DEMO=1 for sample data.")
+    if ODBC_DRIVER not in pyodbc.drivers():
+        return (f"ODBC driver '{ODBC_DRIVER}' is not installed. Installed drivers: "
+                f"{pyodbc.drivers() or 'none'}. Install it or set DBA_ODBC_DRIVER.")
+    try:
+        build_conn_str()
+    except RuntimeError as e:
+        return str(e)
+    return None
+
+
+CONFIG_ERROR = check_config()
+CONN_STR = None if USE_DEMO_DATA or CONFIG_ERROR else build_conn_str()
+if CONFIG_ERROR:
+    app.logger.error(f"Configuration error: {CONFIG_ERROR}")
+
+
+def connect(timeout=5, **kwargs):
+    """Open a connection to DBA_Central. Use as: with connect() as conn."""
+    if CONFIG_ERROR:
+        raise RuntimeError(CONFIG_ERROR)
+    conn = pyodbc.connect(CONN_STR, timeout=timeout, **kwargs)
+    conn.timeout = 30                   # per-query timeout, below gunicorn's 60 s
+    return closing(conn)                # pyodbc's own context manager does not close
+
+
+def _plain(value):
+    """Turn SQL Server types into the plain values the templates expect."""
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, datetime):
+        return value.strftime('%Y-%m-%d %H:%M')
+    if isinstance(value, date):
+        return value.isoformat()
+    return value
 
 
 def query(sql, demo_key=None):
-    """Run a query against DBA_Central. Falls back to demo data if configured."""
+    """Run a query against DBA_Central. Falls back to demo data if configured.
+
+    On failure the page still renders (with empty tables) and the error is
+    shown in a banner, instead of silently looking like a healthy, empty estate.
+    """
     if USE_DEMO_DATA:
         return DEMO_DATA.get(demo_key, [])
-    try:
-        with pyodbc.connect(CONN_STR, timeout=5) as conn:
-            cur = conn.cursor()
-            cur.execute(sql)
-            cols = [c[0] for c in cur.description]
-            return [dict(zip(cols, row)) for row in cur.fetchall()]
-    except Exception as e:
-        app.logger.error(f"Query failed: {e}")
+    errors = g.setdefault('db_errors', [])
+    if g.get('db_down'):                # don't wait out the login timeout again
         return []
+    try:
+        conn = connect()
+    except Exception as e:              # can't reach / log in: skip the page's other queries
+        app.logger.error(f"Connection failed: {e}")
+        g.db_down = True
+        errors.append(f"Cannot connect to {SQL_DATABASE}: {e}")
+        return []
+    try:
+        with conn as c:
+            cur = c.cursor()
+            cur.execute(sql)
+            cols = [col[0] for col in cur.description]
+            return [{k: _plain(v) for k, v in zip(cols, row)} for row in cur.fetchall()]
+    except Exception as e:              # e.g. a missing view or a missing GRANT
+        app.logger.error(f"Query failed: {sql} -- {e}")
+        errors.append(f"{sql} -- {e}")
+        return []
+
+
+@app.context_processor
+def inject_status():
+    return {'db_errors': g.get('db_errors', []), 'demo_mode': USE_DEMO_DATA}
+
+
+def free_pct(row):
+    """FreePercent as a number; a missing value counts as healthy (100)."""
+    v = row.get('FreePercent')
+    return 100 if v is None else v
 
 
 # ─────────────────────────────────────────────────────────────
@@ -223,8 +291,8 @@ def overview():
         'backup_total': len(backup),
         'policy_pass': sum(1 for p in policy if p.get('Result') == 'Pass'),
         'policy_total': len(policy),
-        'disk_critical': sum(1 for d in disk if d.get('FreePercent', 100) < 5),
-        'disk_warning': sum(1 for d in disk if 5 <= d.get('FreePercent', 100) < 15),
+        'disk_critical': sum(1 for d in disk if free_pct(d) < 5),
+        'disk_warning': sum(1 for d in disk if 5 <= free_pct(d) < 15),
     }
 
     return render_template('overview.html',
@@ -277,7 +345,7 @@ def healthz():
         return jsonify({'status': 'ok', 'mode': 'demo'})
     target = f"{SQL_HOST},{SQL_PORT}" if SQL_PORT else SQL_HOST
     try:
-        with pyodbc.connect(CONN_STR, timeout=5) as conn:
+        with connect() as conn:
             row = conn.cursor().execute(
                 "SELECT @@SERVERNAME, DB_NAME(), SUSER_SNAME(), "
                 "(SELECT COUNT(*) FROM cfg.Instance WHERE IsActive = 1)"
@@ -290,18 +358,19 @@ def healthz():
                         'auth': SQL_AUTH, 'error': str(e)}), 503
 
 
-@app.route('/api/refresh')
+@app.route('/api/refresh', methods=['POST'])
 def api_refresh():
     """Start the health sweep Agent job (P5 write-back preview).
 
     The job runs as the SQL Agent service account, so the linked servers work
     whichever login the dashboard uses. Needs the optional grant in
-    sql/create_dashboard_login.sql.
+    sql/create_dashboard_login.sql. POST only, so a link preview or crawler
+    following a URL cannot start the job.
     """
     if USE_DEMO_DATA:
         return jsonify({'status': 'demo', 'message': 'Demo mode — no action taken'})
     try:
-        with pyodbc.connect(CONN_STR, timeout=10, autocommit=True) as conn:
+        with connect(timeout=10, autocommit=True) as conn:
             conn.cursor().execute("EXEC msdb.dbo.sp_start_job @job_name = N'DBA - health sweep'")
         return jsonify({'status': 'ok', 'message': 'Health sweep job started'})
     except Exception as e:
@@ -313,4 +382,6 @@ if __name__ == '__main__':
     port = int(os.getenv('DBA_PORT', '5000'))
     mode = 'DEMO DATA' if USE_DEMO_DATA else f"LIVE — {SQL_HOST}{',' + SQL_PORT if SQL_PORT else ''} ({SQL_AUTH} auth)"
     print(f"\n  DBA Central Dashboard\n  Mode: {mode}\n  Open: http://localhost:{port}\n")
+    if CONFIG_ERROR:
+        print(f"  CONFIGURATION ERROR: {CONFIG_ERROR}\n")
     app.run(debug=os.getenv('DBA_DEBUG', '0') == '1', host=host, port=port)

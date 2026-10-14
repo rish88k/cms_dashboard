@@ -1,12 +1,29 @@
 {% extends "base.html" %}
-{% block title %}Platform — DBA Central{% endblock %}
+{% block title %}Platform — DBA Central<script>
+document.getElementById('refresh-btn').addEventListener('click', async (ev) => {
+  const btn = ev.currentTarget, msg = document.getElementById('refresh-msg');
+  btn.disabled = true; msg.textContent = 'Starting…';
+  try {
+    const r = await fetch('/api/refresh', {method: 'POST'});
+    msg.textContent = (await r.json()).message;
+  } catch (e) { msg.textContent = 'Request failed: ' + e; }
+  btn.disabled = false;
+});
+</script>
+{% endblock %}
 {% block content %}
 <div class="page-head">
   <h2>Platform health</h2>
   <p>Collector runs in the last 24 hours — the platform monitoring itself</p>
 </div>
 <div class="panel">
-  <div class="panel-head"><h3>Collection log</h3><span class="count">{{ collection|length }} runs</span></div>
+  <div class="panel-head"><h3>Collection log</h3>
+    <div class="flex">
+      <span class="count" id="refresh-msg"></span>
+      <button class="btn" id="refresh-btn" type="button">Run health sweep</button>
+      <span class="count">{{ collection|length }} runs</span>
+    </div>
+  </div>
   <table>
     <tr><th>Started</th><th>Collector</th><th>Target</th><th>Status</th><th>Message</th></tr>
     {% for c in collection %}
@@ -20,4 +37,15 @@
     {% endfor %}
   </table>
 </div>
+<script>
+document.getElementById('refresh-btn').addEventListener('click', async (ev) => {
+  const btn = ev.currentTarget, msg = document.getElementById('refresh-msg');
+  btn.disabled = true; msg.textContent = 'Starting…';
+  try {
+    const r = await fetch('/api/refresh', {method: 'POST'});
+    msg.textContent = (await r.json()).message;
+  } catch (e) { msg.textContent = 'Request failed: ' + e; }
+  btn.disabled = false;
+});
+</script>
 {% endblock %}

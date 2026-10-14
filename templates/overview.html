@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import disk_usage %}
 {% block title %}Overview — DBA Central{% endblock %}
 {% block content %}
 <div class="page-head">
@@ -72,12 +73,7 @@
       <td class="mono">{{ d.ServerName }}</td>
       <td class="mono">{{ d.VolumePath }}</td>
       <td class="mono">{{ d.FreeGB }} GB</td>
-      <td>
-        <div class="flex">
-          <div class="bar"><span class="{% if d.FreePercent < 5 %}f-crit{% elif d.FreePercent < 15 %}f-warn{% else %}f-ok{% endif %}" style="width:{{ 100 - d.FreePercent }}%"></span></div>
-          <span class="mono">{{ d.FreePercent }}% free</span>
-        </div>
-      </td>
+      <td>{{ disk_usage(d.FreePercent, '% free') }}</td>
       <td class="mono">{{ d.TotalGB }} GB</td>
     </tr>
     {% endfor %}

@@ -1,0 +1,8 @@
+# secrets — copy .env.example to .env, never commit .env
+.env
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.pyc

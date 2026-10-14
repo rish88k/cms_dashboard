@@ -13,6 +13,25 @@ It runs two ways:
 
 Both start in **demo mode** (`DBA_DEMO=1`) unless you set `DBA_DEMO=0`.
 
+### How it reaches the CMS (master) server
+
+The "master node" is the **Central Management Server** host (`OIT-L222`, default
+instance). It holds the `DBA_Central` database, which the collectors fill from every
+registered node (`NODE_1` … `NODE_4`). The dashboard only ever connects to that one
+server and database — it never talks to the nodes itself.
+
+```
+browser ──HTTP──▶ Flask app ──ODBC / TDS (TCP 1433)──▶ OIT-L222 · DBA_Central
+                                                          ▲
+                        Agent jobs / collectors ──────────┘── NODE_1 … NODE_4
+```
+
+The connection is configured with `DBA_SQL_HOST`, `DBA_SQL_PORT`, `DBA_SQL_DATABASE`,
+`DBA_SQL_AUTH` (+ user/password) — see [Settings](#settings). Always confirm it with
+**`/healthz`** before looking at the pages: it shows which server, database and login
+the app reached, or the exact driver error. If a page cannot read its data, a red
+banner at the top of the page shows the error instead of empty tables that look healthy.
+
 ---
 
 ## Option A — Docker (app in a container, SQL Server on the laptop)
@@ -90,6 +109,8 @@ Then open **http://localhost:5000**.
 Install the [Microsoft ODBC Driver 18 for SQL Server](https://learn.microsoft.com/sql/connect/odbc/download-odbc-driver-for-sql-server), then:
 
 ```bat
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
 set DBA_DEMO=0
 python app.py
@@ -97,6 +118,26 @@ python app.py
 
 This uses your Windows login (`DBA_SQL_AUTH=windows`, the default) against `OIT-L222`.
 If you only have Driver 17: `set DBA_ODBC_DRIVER=ODBC Driver 17 for SQL Server`.
+
+---
+
+## Option C — natively on Linux / macOS
+
+Windows logins are not available here, so use the SQL login from
+`sql/create_dashboard_login.sql`. Install unixODBC and the
+[ODBC Driver 18](https://learn.microsoft.com/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server)
+(`msodbcsql18`), then:
+
+```bash
+python3 -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt
+export DBA_DEMO=0 DBA_SQL_HOST=OIT-L222 DBA_SQL_PORT=1433 \
+       DBA_SQL_AUTH=sql DBA_SQL_USER=dashboard_reader DBA_SQL_PASSWORD='...'
+python app.py            # or: gunicorn --bind 127.0.0.1:5000 app:app
+```
+
+`DBA_SQL_HOST` must resolve from this machine — use the FQDN or IP if the short
+name does not.
 
 ---
 
@@ -134,7 +175,8 @@ All settings are environment variables. In Docker they come from `.env`.
 
 ## Starting a collector from the dashboard
 
-`/api/refresh` starts the **`DBA - health sweep`** Agent job with `msdb.dbo.sp_start_job`.
+The **Run health sweep** button on *Platform health* calls `POST /api/refresh`
+(POST only — a plain link cannot trigger it), which starts the **`DBA - health sweep`** Agent job with `msdb.dbo.sp_start_job`.
 The job runs as the SQL Agent service account, so the linked servers work whichever
 login the dashboard uses. For the `dashboard_reader` login it needs the optional
 Step 5 grant in `sql/create_dashboard_login.sql` — leave that out to keep the
@@ -152,7 +194,7 @@ dba-dashboard/
 ├─ .dockerignore
 ├─ sql/
 │  └─ create_dashboard_login.sql read-only SQL login for the container
-└─ templates/                    one HTML template per page + base.html
+└─ templates/                    one HTML template per page + base.html, _macros.html
 ```
 
 ## Production notes

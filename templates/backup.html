@@ -15,8 +15,8 @@
       <td class="mono">{{ b.DatabaseName }}</td>
       <td class="mono">{{ b.LastFullUtc or '—' }}</td>
       <td class="mono">{{ b.LastLogUtc or '—' }}</td>
-      <td class="mono">{% if b.RpoActualMin > 9000 %}never{% else %}{{ b.RpoActualMin }} min{% endif %}</td>
-      <td class="mono" style="color:var(--muted)">{{ b.RpoTargetMin }} min</td>
+      <td class="mono">{% if b.RpoActualMin is none or b.RpoActualMin > 9000 %}never{% else %}{{ b.RpoActualMin }} min{% endif %}</td>
+      <td class="mono" style="color:var(--muted)">{{ b.RpoTargetMin if b.RpoTargetMin is not none else '—' }} min</td>
       <td><span class="badge {% if b.IsCompliant %}b-ok{% else %}b-crit{% endif %}">
         {% if b.IsCompliant %}Compliant{% else %}Breached{% endif %}</span></td>
     </tr>

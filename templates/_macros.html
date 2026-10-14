@@ -1,0 +1,14 @@
+{# Shared cells. Live data can contain NULLs, so every value is checked first. #}
+
+{% macro disk_level(fp) -%}
+{% if fp is none %}unknown{% elif fp < 5 %}crit{% elif fp < 15 %}warn{% else %}ok{% endif %}
+{%- endmacro %}
+
+{% macro disk_usage(fp, suffix='%') -%}
+{% if fp is none %}<span class="mono" style="color:var(--muted)">—</span>{% else %}
+<div class="flex">
+  <div class="bar"><span class="f-{{ disk_level(fp) }}" style="width:{{ [[100 - fp, 0]|max, 100]|min }}%"></span></div>
+  <span class="mono">{{ fp }}{{ suffix }}</span>
+</div>
+{% endif %}
+{%- endmacro %}
